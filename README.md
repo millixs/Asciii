@@ -105,13 +105,13 @@ image_to_ascii_color("photo.png", output_file_html="output.html", new_width=150)
 
 ASCII art rendered as plain text in a monospace editor:
 
-![Grayscale ASCII text output](screenshots/1.png)
+![Grayscale ASCII text output](screenshots/3.png)
 
 ### Colorized HTML output
 
 The same image converted to colored ASCII art in the browser:
 
-![Colorized ASCII HTML output](screenshots/2.png)
+![Colorized ASCII HTML output](screenshots/4.png)
 
 ## Project Structure
 
