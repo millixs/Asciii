@@ -1,4 +1,4 @@
-<h1 align="center">asciii</h1>
+<h1 align="center">Asciii</h1>
 
 <p align="center">
 An image-to-ASCII converter with black & white (.txt) and colored (.html) exports.
@@ -82,17 +82,6 @@ image_to_ascii("photo.png", output_file="output.txt", new_width=150)
 # Colorized HTML file
 image_to_ascii_color("photo.png", output_file_html="output.html", new_width=150)
 ```
-
-### Parameters
-
-| Function | Parameter | Default | Description |
-|----------|-----------|---------|-------------|
-| `image_to_ascii` | `image_path` | — | Path to the input image |
-| | `output_file` | `"ascii_image.txt"` | Output text file path |
-| | `new_width` | `100` | Number of ASCII characters per row |
-| `image_to_ascii_color` | `image_path` | — | Path to the input image |
-| | `output_file_html` | `"ascii_image.html"` | Output HTML file path |
-| | `new_width` | `100` | Number of ASCII characters per row |
 
 ### Viewing the output
 
