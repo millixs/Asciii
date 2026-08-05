@@ -1,8 +1,15 @@
-# Asciii
+<h1 align="center">asciii</h1>
 
-Convert any image into ASCII art — as a plain text file or a colorized HTML page.
+<p align="center">
+An image-to-ASCII converter with black & white (.txt) and colored (.html) exports.
+</p>
 
-Asciii is a lightweight Python tool that maps image pixels to ASCII characters based on brightness, producing retro-style text art from photos, illustrations, or any raster image.
+<div align="center">
+<img src="./screenshots/1.png" width="50%" />
+<img src="./screenshots/2.png" width="45%" />
+</div>
+
+---
 
 ## Features
 
