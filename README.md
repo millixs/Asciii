@@ -1,4 +1,4 @@
-<h1 align="center">Asciii</h1>
+<h1 align="center">asciii</h1>
 
 <p align="center">
 An image-to-ASCII converter with black & white (.txt) and colored (.html) exports.
@@ -111,8 +111,10 @@ Asciii/
 ├── ascii_image.txt     # Generated grayscale output
 ├── ascii_image.html    # Generated colorized output
 ├── screenshots/        # Example output screenshots
-│   ├── 1.png
-│   └── 2.png
+│   ├── 1.png           
+│   ├── 2.png           
+│   ├── 3.png           
+│   └── 4.png           
 └── README.md
 ```
 
