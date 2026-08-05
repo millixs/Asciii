@@ -5,7 +5,7 @@ An image-to-ASCII converter with black & white (.txt) and colored (.html) export
 </p>
 
 <div align="center">
-<img src="./screenshots/1.png" width="48%" height="392" />
+<img src="./screenshots/1.png" width="48%" height="390" />
 <img src="./screenshots/2.png" width="48%" height="400" />
 </div>
 
