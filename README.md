@@ -1,7 +1,7 @@
 <h1 align="center">asciii</h1>
 
 <p align="center">
-An image-to-ASCII converter with black & white (.txt / png), colored (.html / png) exports.
+An image-to-ASCII converter with black & white (.txt / png) and colored (.html / png) exports.
 </p>
 
 <div align="center">
