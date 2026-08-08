@@ -1,7 +1,7 @@
 <h1 align="center">asciii</h1>
 
 <p align="center">
-An image-to-ASCII converter with black & white (.txt) and colored (.html) exports.
+An image-to-ASCII converter with black & white (.txt), colored (.html), and PNG image exports to your Downloads folder.
 </p>
 
 <div align="center">
@@ -19,12 +19,17 @@ An image-to-ASCII converter with black & white (.txt) and colored (.html) export
 - **Configurable width** — control output detail by setting the character width (default: 100 columns)
 - **Simple API** — use as a script or import the functions in your own Python projects
 - **No external assets** — HTML output is a single file with inline CSS; open it directly in any browser
+- **PNG image export** — rasterizes ASCII art into real `.png` images and saves them to your **Downloads** folder (enabled by default)
+- **Monochrome & color PNGs** — produces `ascii_image_bw.png` (black & white) and `ascii_image_color.png` (full-color characters) alongside the text and HTML outputs
+- **Custom save location** — override the Downloads folder or filename with `downloads_dir` and `image_name` parameters
+- **Font-aware rendering** — uses system monospace fonts (e.g. Consolas on Windows) for sharp PNG output; optional `font_path` and `font_size` controls
 
 ## How It Works ?
 
 1. The input image is resized to a target width while preserving aspect ratio (with a 0.55 height factor to compensate for tall monospace characters).
 2. Each pixel's brightness is mapped to one of 10 ASCII characters, from darkest (`@`) to lightest (space).
 3. For HTML output, the same character is wrapped in a colored `<span>` using the pixel's original RGB values.
+4. For PNG output, the character grid is drawn onto a canvas with a monospace font — each character is placed at its grid position, using either a single foreground color (B&W) or the original pixel RGB values (color).
 
 ## Requirements
 
@@ -62,6 +67,8 @@ By default this produces:
 |------|-------------|
 | `ascii_image.txt` | Grayscale ASCII art (120 columns wide) |
 | `ascii_image.html` | Colorized ASCII art (120 columns wide) |
+| `~/Downloads/ascii_image_bw.png` | B&W PNG image of the ASCII art (saved to your Downloads folder) |
+| `~/Downloads/ascii_image_color.png` | Full-color PNG image of the ASCII art (saved to your Downloads folder) |
 
 Edit the bottom of `ascii.py` to change the input file or width:
 
@@ -69,6 +76,27 @@ Edit the bottom of `ascii.py` to change the input file or width:
 if __name__ == "__main__":
     image_to_ascii("input.jpg", new_width=120)
     image_to_ascii_color("input.jpg", new_width=120)
+```
+
+PNG export is on by default. To disable it or customize the save location:
+
+```python
+if __name__ == "__main__":
+    image_to_ascii(
+        "input.jpg",
+        new_width=120,
+        save_image=True,                        # set False to skip PNG export
+        image_name="my_ascii_bw.png",           # filename in Downloads
+        downloads_dir="C:/Users/You/Downloads",   # optional; defaults to system Downloads
+        font_path="C:/Windows/Fonts/consola.ttf",
+        font_size=14,
+    )
+    image_to_ascii_color(
+        "input.jpg",
+        new_width=120,
+        save_image=True,
+        image_name="my_ascii_color.png",
+    )
 ```
 
 ### As a Python module
@@ -81,12 +109,24 @@ image_to_ascii("photo.png", output_file="output.txt", new_width=150)
 
 # Colorized HTML file
 image_to_ascii_color("photo.png", output_file_html="output.html", new_width=150)
+
+# B&W PNG saved to Downloads (default behavior)
+image_to_ascii("photo.png", save_image=True, image_name="ascii_image_bw.png")
+
+# Color PNG saved to a custom folder
+image_to_ascii_color(
+    "photo.png",
+    save_image=True,
+    image_name="ascii_image_color.png",
+    downloads_dir="/path/to/folder",
+)
 ```
 
 ### Viewing the output
 
 - **Text (`.txt`)** — open in any editor or terminal with a **monospace font** (e.g. Consolas, Cascadia Mono, Fira Code). Proportional fonts will distort the image.
 - **HTML (`.html`)** — open in a web browser for the best result; colors and proportions are handled automatically.
+- **PNG (`.png`)** — open in any image viewer or share directly; no monospace font required. Files are saved to your **Downloads** folder by default (`ascii_image_bw.png` and `ascii_image_color.png`).
 
 ## Screenshots
 
@@ -135,6 +175,10 @@ Any format supported by Pillow works out of the box, including:
 - **Lower `new_width`** = faster and smaller, but less recognizable.
 - For portraits and detailed photos, `100–150` columns is a good starting range.
 - The HTML output preserves original colors and is usually the most visually accurate format.
+- PNG images are the easiest format to share — they look the same everywhere without needing a monospace font or browser.
+- Set `save_image=False` if you only want the `.txt` / `.html` files and no PNG in Downloads.
+- For sharper PNGs, pass `font_path` pointing to a monospace TTF on your system (e.g. `C:/Windows/Fonts/consola.ttf` on Windows).
+- Increase `font_size` for larger, more readable PNG output; decrease it to fit more detail in a smaller image.
 
 ## License
 
