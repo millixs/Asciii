@@ -1,174 +1,216 @@
-# Import the Python Imaging Library to handle image operations
-from PIL import Image
+from PIL import Image, ImageOps, ImageFilter, ImageFont, ImageDraw
+from pathlib import Path
 
-# Define ASCII characters arranged from darkest to lightest
-# These characters will represent different brightness levels in the final ASCII art
-ASCII_CHARS = "@%#*+=-:. "
+ASCII_CHARS = "$@B%8&WM#*oahkbdpqwmZO0QLCJUYXzcvunxrjft/\\|()1{}[]?-_+~<>i!lI;:,\"^`'. "
 
-def resize_image(image, new_width=100):
-    # Get the current width and height dimensions of the image
+def get_downloads_folder():
+    downloads = Path.home() / "Downloads"
+    downloads.mkdir(parents=True, exist_ok=True)
+    return downloads
+
+
+def _load_mono_font(size, font_path=None):
+    candidates = [font_path] if font_path else []
+    candidates += [
+        "/usr/share/fonts/truetype/dejavu/DejaVuSansMono.ttf",
+        "/usr/share/fonts/truetype/liberation/LiberationMono-Regular.ttf",
+        "/System/Library/Fonts/Menlo.ttc",
+        "/System/Library/Fonts/Supplemental/Courier New.ttf",
+        "C:\\Windows\\Fonts\\consola.ttf",
+        "C:\\Windows\\Fonts\\cour.ttf",
+    ]
+    for path in candidates:
+        if not path:
+            continue
+        try:
+            return ImageFont.truetype(path, size=size)
+        except Exception:
+            continue
+
+    print("⚠️  No monospace TTF font found - falling back to PIL's built-in "
+          "font (lower quality, fixed size). Pass font_path='C:/path/to/font.ttf' "
+          "to image_to_ascii()/image_to_ascii_color() for a sharper PNG.")
+    return ImageFont.load_default()
+
+
+def _font_metrics(font, font_size):
+    try:
+        bbox = font.getbbox("M")
+        width = bbox[2] - bbox[0]
+        ascent, descent = font.getmetrics()
+        height = ascent + descent
+        return max(width, 1), max(height, 1)
+    except Exception:
+        return max(int(font_size * 0.6), 1), max(font_size, 1)
+
+
+def ascii_to_image(chars_grid, width, height, colors=None, bg_color=(0, 0, 0),
+                    fg_color=(255, 255, 255), font_path=None, font_size=14,
+                    out_path="ascii_image.png"):
+    """
+    Rasterizes a flat character grid into a real PNG image.
+
+    chars_grid: string/list of characters, length == width*height, row-major
+    colors:     optional flat list of (r, g, b) tuples, same length/order,
+                for a colored render. If None, every character is drawn in
+                fg_color (monochrome mode).
+    """
+    font = _load_mono_font(font_size, font_path)
+    cell_w, cell_h = _font_metrics(font, font_size)
+
+    canvas = Image.new("RGB", (cell_w * width, cell_h * height), bg_color)
+    draw = ImageDraw.Draw(canvas)
+
+    for row in range(height):
+        offset = row * width
+        y = row * cell_h
+        for col in range(width):
+            ch = chars_grid[offset + col]
+            if ch == " ":
+                continue
+            color = colors[offset + col] if colors is not None else fg_color
+            draw.text((col * cell_w, y), ch, font=font, fill=color)
+
+    canvas.save(out_path)
+    return out_path
+
+
+def resize_image(image, new_width=300):
     width, height = image.size
-    
-    # Calculate the aspect ratio (height divided by width) to maintain image proportions
     aspect_ratio = height / width
-    
-    # Calculate new height based on the aspect ratio and new width
-    # The 0.55 factor compensates for terminal font character aspect ratio
-    # (characters are taller than they are wide), so we reduce the computed height
-    new_height = int(aspect_ratio * new_width * 0.55)
-    
-    # Resize the image to the new dimensions and return the resized image
-    return image.resize((new_width, new_height))
+    new_height = max(1, int(aspect_ratio * new_width * 0.55))
+    return image.resize((new_width, new_height), Image.LANCZOS)
 
-def grayify(image):
-    # Convert the image to grayscale using PIL's "L" mode (8-bit luminance)
-    # "L" mode stores brightness values from 0 (black) to 255 (white), with many gray levels
-    return image.convert("L")
 
-def pixels_to_ascii(image):
-    # Extract all pixel brightness values from the grayscale image
+def sharpen(image):
+    return image.filter(ImageFilter.UnsharpMask(radius=2, percent=150, threshold=3))
+
+
+def prep_grayscale(image):
+    gray = image.convert("L")
+    gray = ImageOps.autocontrast(gray, cutoff=1)
+    return gray
+
+
+def pixels_to_ascii(image, invert=True):
+    chars = ASCII_CHARS[::-1] if invert else ASCII_CHARS
+    n = len(chars) - 1
     pixels = image.getdata()
-    
-    # Convert each pixel brightness to an ASCII character
-    # Formula: pixel_value * (total_chars - 1) // 255 maps 0-255 brightness to character index
-    ascii_chars = [ASCII_CHARS[pixel * (len(ASCII_CHARS) - 1) // 255] for pixel in pixels]
-    
-    # Join all ASCII characters into one continuous string
+    ascii_chars = [chars[pixel * n // 255] for pixel in pixels]
     return "".join(ascii_chars)
 
-def image_to_ascii(image_path, output_file="ascii_image.txt", new_width=100):
-    # Start a try block to handle potential file opening errors
+
+def image_to_ascii(image_path, output_file="ascii_image.txt", new_width=300, invert=True,
+                    save_image=True, image_name="ascii_image_bw.png", downloads_dir=None,
+                    font_path=None, font_size=14):
     try:
-        # Attempt to open the image file at the specified path
-        image = Image.open(image_path)
-    # If opening fails, catch the exception
+        image = Image.open(image_path).convert("RGB")
     except Exception as e:
-        # Print an error message with the file path and error details
         print(f"Unable to open image {image_path}. Error: {e}")
-        # Exit the function early if image cannot be opened
         return
 
-    # Resize the opened image to the specified width while maintaining aspect ratio
     image = resize_image(image, new_width)
-    
-    # Convert the resized image to grayscale
-    image = grayify(image)
+    image = sharpen(image)
+    gray = prep_grayscale(image)
+    ascii_str = pixels_to_ascii(gray, invert=invert)
+    img_width = gray.width
+    img_height = gray.height
+    ascii_img = "\n".join(
+        ascii_str[i:i + img_width] for i in range(0, len(ascii_str), img_width)
+    )
 
-    # Convert all pixels in the grayscale image to ASCII characters
-    ascii_str = pixels_to_ascii(image)
-    
-    # Store the width of the processed image for line breaking
-    img_width = image.width
-
-    # Split the long ASCII string into lines that match the image width
-    # This creates proper line breaks to maintain the image's rectangular shape
-    ascii_img = "\n".join([ascii_str[i:i+img_width] for i in range(0, len(ascii_str), img_width)])
-
-    # Open the output file in write mode
     with open(output_file, "w") as f:
-        # Write the formatted ASCII art to the file
         f.write(ascii_img)
 
-    # Print a success message with checkmark emoji
     print(f"🎲 ASCII art written to {output_file}")
 
+    if save_image:
+        out_dir = Path(downloads_dir) if downloads_dir else get_downloads_folder()
+        out_path = out_dir / image_name
+        bg_color = (0, 0, 0) if invert else (255, 255, 255)
+        fg_color = (255, 255, 255) if invert else (0, 0, 0)
+        ascii_to_image(
+            ascii_str, img_width, img_height,
+            colors=None, bg_color=bg_color, fg_color=fg_color,
+            font_path=font_path, font_size=font_size, out_path=str(out_path),
+        )
+        print(f"B&W ASCII image saved to {out_path}")
+
+
 def escape_html(text: str) -> str:
-    # Replace ampersand characters with HTML entity (must be done first)
-    # This prevents conflicts with other HTML entities
     return (
         text.replace("&", "&amp;")
-        # Replace less-than symbol with HTML entity
         .replace("<", "&lt;")
-        # Replace greater-than symbol with HTML entity
         .replace(">", "&gt;")
-        # Replace double quotes with HTML entity
         .replace('"', "&quot;")
-        # Replace single quotes with HTML entity
         .replace("'", "&#39;")
     )
 
-def image_to_ascii_color(image_path, output_file_html="ascii_image.html", new_width=100):
-    # Start a try block to handle potential file opening errors
+
+def image_to_ascii_color(image_path, output_file_html="ascii_image.html", new_width=300, invert=True,
+                          save_image=True, image_name="ascii_image_color.png", downloads_dir=None,
+                          font_path=None, font_size=14):
     try:
-        # Open the image and convert to RGB color mode (red, green, blue values)
         image_rgb = Image.open(image_path).convert("RGB")
-    # If opening fails, catch the exception
     except Exception as e:
-        # Print an error message with the file path and error details
         print(f"Unable to open image {image_path}. Error: {e}")
-        # Exit the function early if image cannot be opened
         return
 
-    # Resize the RGB image to the specified width while maintaining aspect ratio
     image_rgb = resize_image(image_rgb, new_width)
-    
-    # Create a grayscale version of the resized image for brightness mapping
-    image_l = grayify(image_rgb)
+    image_rgb = sharpen(image_rgb)
+    image_l = prep_grayscale(image_rgb)
 
-    # Get the dimensions of the processed image
     width, height = image_rgb.size
-    
-    # Extract RGB color values from each pixel as a list of tuples
     rgb_pixels = list(image_rgb.getdata())
-    
-    # Extract brightness values from the grayscale version as a list
     l_pixels = list(image_l.getdata())
 
-    # Map each brightness value to its corresponding ASCII character
-    # Uses the same formula as the grayscale version
-    chars = [ASCII_CHARS[l * (len(ASCII_CHARS) - 1) // 255] for l in l_pixels]
+    chars_ramp = ASCII_CHARS[::-1] if invert else ASCII_CHARS
+    n = len(chars_ramp) - 1
+    chars = [chars_ramp[l * n // 255] for l in l_pixels]
 
-    # Initialize an empty list to store HTML lines
     lines_html = []
-    
-    # Process each row of the image
     for y in range(height):
-        # Initialize an empty list to store HTML spans for this row
         spans = []
-        
-        # Process each column in the current row
         for x in range(width):
-            # Calculate the index of the current pixel in the flat pixel array
             idx = y * width + x
-            
-            # Extract the red, green, and blue values for this pixel
+            ch = chars[idx]
+            if ch == " ":
+                spans.append(" ")
+                continue
             r, g, b = rgb_pixels[idx]
-            
-            # Get the ASCII character for this pixel and escape HTML special characters
-            ch = escape_html(chars[idx])
-            
-            # Create an HTML span element with inline CSS for the pixel's color
-            spans.append(f"<span style=\"color: rgb({r}, {g}, {b});\">{ch}</span>")
-        
-        # Join all spans for this row and add to the lines list
+            ch = escape_html(ch)
+            spans.append(f'<span style="color:rgb({r},{g},{b})">{ch}</span>')
         lines_html.append("".join(spans))
 
-    # Create the complete HTML document structure
+    font_px = max(4, min(10, int(2400 / width)))
+
     html = (
-        # HTML5 document declaration
         "<!DOCTYPE html><html><head><meta charset=\"utf-8\">"
-        # Set the page title
         "<title>ASCII Image</title>"
-        # Add CSS styles: black background, no margins, monospace font
-        "<style>body{background:#000;margin:0;padding:16px;min-height:100vh;display:grid;place-items:center}pre{font:10px/10px monospace;letter-spacing:0;margin:0;display:inline-block}</style></head><body><pre>"
-        # Insert all the colored ASCII lines
+        f"<style>body{{background:#000;margin:0;padding:16px;min-height:100vh;"
+        f"display:grid;place-items:center}}"
+        f"pre{{font:{font_px}px/{font_px}px monospace;letter-spacing:0;margin:0;"
+        f"display:inline-block;white-space:pre}}</style></head><body><pre>"
         + "\n".join(lines_html)
-        # Close the HTML structure
         + "</pre></body></html>"
     )
 
-    # Open the output HTML file in write mode with UTF-8 encoding
     with open(output_file_html, "w", encoding="utf-8") as f:
-        # Write the complete HTML content to the file
         f.write(html)
 
-    # Print a success message with artist palette emoji
     print(f"🎨 Colored ASCII saved to {output_file_html} (HTML)")
 
-# Check if this script is being run directly (not imported as a module)
+    if save_image:
+        out_dir = Path(downloads_dir) if downloads_dir else get_downloads_folder()
+        out_path = out_dir / image_name
+        ascii_to_image(
+            chars, width, height,
+            colors=rgb_pixels, bg_color=(0, 0, 0),
+            font_path=font_path, font_size=font_size, out_path=str(out_path),
+        )
+        print(f"Colored ASCII image saved to {out_path}")
+
+
 if __name__ == "__main__":
-    # Create a grayscale ASCII art text file from "input.jpg" with width of 120 characters
-    image_to_ascii("input.jpg", new_width=120)
-    
-    # Create a colorized ASCII art HTML file from the same image with width of 120 characters
-    image_to_ascii_color("input.jpg", new_width=120)
+    image_to_ascii("input.jpg", new_width=300, invert=True)
+    image_to_ascii_color("input.jpg", new_width=300, invert=True)
